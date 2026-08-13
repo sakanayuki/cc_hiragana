@@ -83,4 +83,5 @@ npm run slice
 
 `main` への push で `.github/workflows/deploy.yml` が走り、GitHub Pages に公開されます。
 
-初回のみ、リポジトリの **Settings → Pages → Source** を **GitHub Actions** に切り替えてください。
+配信方式（Settings → Pages → Source）の切り替えはワークフロー側で行います
+（`actions/configure-pages` の `enablement: true`）。手動設定は不要です。

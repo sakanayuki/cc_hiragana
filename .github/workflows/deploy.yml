@@ -32,7 +32,12 @@ jobs:
       # ここでは走らせない。素材を差し替えたときだけ手元で流す。
       - run: npm run build
 
+      # enablement: true で Pages の配信方式を「GitHub Actions」に切り替える。
+      # この repo は当初「Deploy from a branch」だったため、これが無いと
+      # ビルド結果ではなくリポジトリ直下がそのまま公開されてしまう。
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
