@@ -1,0 +1,20 @@
+{
+  "name": "cc-hiragana",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "3歳児向けの ひらがな五十音アプリ",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "slice": "python3 tools/slice_sprite.py"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "vite-plugin-pwa": "^0.20.5"
+  }
+}

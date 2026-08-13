@@ -1,0 +1,229 @@
+/* ---- 五十音表 --------------------------------------------------------
+ * 端末の向きで並びが変わる。
+ *   縦持ち : 五十音表と同じ 2 列 × 5 行 (右が あ行、左が か行) + 最下段に「ん」
+ *   横長   : 素材画像と同じ あ行 / か行 / ん の 3 行 × 5 列
+ * どちらもスクロールは起こさず、必ず 1 画面に収める。
+ * ------------------------------------------------------------------- */
+
+.board-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  min-width: 0;
+  /* 盤面の大きさをこの領域の実寸から決めるためのコンテナ */
+  container-type: size;
+}
+
+/* 盤面は必ず .board-area に収める（スクロールは絶対に起こさない）。
+ *
+ * aspect-ratio だと隙間(gap)の本数が縦横で違う分だけ高さがはみ出すので、
+ * 1 マスの一辺 --cell を「幅から決めた値」と「高さから決めた値」の
+ * 小さい方として出し、そこから盤面の幅と高さを組み立てている。
+ *   --cols       列数
+ *   --row-units  行の合計 fr（「ん」の行は 0.6 行分）
+ *   --row-gaps   縦に入る隙間の本数
+ */
+.board {
+  --gap: clamp(5px, 1.4vmin, 14px);
+  --cell: min(
+    calc((100cqw - (var(--cols) - 1) * var(--gap)) / var(--cols)),
+    calc((100cqh - var(--row-gaps) * var(--gap)) / var(--row-units))
+  );
+
+  display: grid;
+  gap: var(--gap);
+  margin: auto;
+  grid-template-columns: repeat(var(--cols), 1fr);
+  width: calc(var(--cols) * var(--cell) + (var(--cols) - 1) * var(--gap));
+  height: calc(var(--row-units) * var(--cell) + var(--row-gaps) * var(--gap));
+}
+
+/* --- 縦持ち: 2 列 × 6 行 --- */
+@media (orientation: portrait) {
+  .board {
+    --cols: 2;
+    --row-units: 5.6;
+    --row-gaps: 5;
+    grid-template-rows: repeat(5, 1fr) 0.6fr;
+  }
+
+  .cell {
+    grid-column: var(--p-col);
+    grid-row: var(--p-row);
+  }
+
+  .cell[data-row='omake'] {
+    grid-column: 1 / -1;
+  }
+}
+
+/* --- 横長: 5 列 × 3 行 --- */
+@media (orientation: landscape) {
+  .board {
+    --cols: 5;
+    --row-units: 2.6;
+    --row-gaps: 2;
+    grid-template-rows: repeat(2, 1fr) 0.6fr;
+  }
+
+  .cell {
+    grid-column: var(--l-col);
+    grid-row: var(--l-row);
+  }
+}
+
+/* ---- マス ---------------------------------------------------------- */
+
+.cell {
+  position: relative;
+  container-type: size;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--face);
+  /* 下に厚みを出すと押せるものだと一目で伝わる */
+  box-shadow:
+    0 clamp(3px, 0.9vmin, 9px) 0 var(--edge),
+    0 clamp(5px, 1.4vmin, 14px) clamp(6px, 1.8vmin, 18px) rgba(60, 45, 30, 0.16);
+  /* 保険の下限。ふだんは上の計算がこれを大きく上回る（360x640 の縦持ちでも
+     1 マス 95px 前後）。ここを大きくすると逆にグリッドの計算を押し広げて
+     はみ出す原因になるので、あくまで下限として小さめに置く。 */
+  min-width: 44px;
+  min-height: 44px;
+  overflow: hidden;
+  transition: transform 120ms ease-out;
+  will-change: transform;
+}
+
+.cell[data-row='a'] {
+  --face: var(--a-face);
+  --edge: var(--a-edge);
+}
+
+.cell[data-row='ka'] {
+  --face: var(--ka-face);
+  --edge: var(--ka-edge);
+}
+
+.cell[data-row='omake'] {
+  --face: var(--omake-face);
+  --edge: var(--omake-edge);
+}
+
+.cell__kana {
+  position: absolute;
+  top: 4cqmin;
+  left: 7cqmin;
+  font-size: 36cqmin;
+  line-height: 1;
+  color: var(--ink);
+  letter-spacing: 0;
+}
+
+.cell__icon {
+  position: absolute;
+  right: 5cqmin;
+  bottom: 4cqmin;
+  width: 66cqmin;
+  height: 66cqmin;
+  object-fit: contain;
+  filter: drop-shadow(0 2cqmin 2cqmin rgba(60, 45, 30, 0.22));
+}
+
+/* 「ん」は横長のマスなので、絵と文字を横並びに寄せる */
+.cell[data-row='omake'] .cell__kana {
+  top: 50%;
+  left: 8%;
+  transform: translateY(-50%);
+  font-size: 62cqmin;
+}
+
+.cell[data-row='omake'] .cell__icon {
+  right: 8%;
+  bottom: 50%;
+  transform: translateY(50%);
+  width: 88cqmin;
+  height: 88cqmin;
+}
+
+/* ---- タップの手応え ------------------------------------------------ */
+
+.cell.is-pressed {
+  animation: cell-bounce 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes cell-bounce {
+  0% {
+    transform: scale(1);
+  }
+  22% {
+    transform: scale(0.92);
+  }
+  60% {
+    transform: scale(1.07);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* 不正解: やさしく首をふる */
+.cell.is-wrong {
+  animation: cell-shake 420ms ease-in-out;
+}
+
+@keyframes cell-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-4%) rotate(-2deg);
+  }
+  45% {
+    transform: translateX(4%) rotate(2deg);
+  }
+  70% {
+    transform: translateX(-2%) rotate(-1deg);
+  }
+}
+
+/* 正解: 大きく跳ねる */
+.cell.is-correct {
+  animation: cell-cheer 620ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index: 2;
+}
+
+@keyframes cell-cheer {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.16) rotate(-3deg);
+  }
+  65% {
+    transform: scale(1.1) rotate(3deg);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ヒント: 2 回まちがえたら正解のマスがゆっくり脈打つ */
+.cell.is-hinted {
+  animation: cell-hint 1.1s ease-in-out infinite;
+  z-index: 1;
+}
+
+@keyframes cell-hint {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.05);
+    filter: brightness(1.12);
+  }
+}

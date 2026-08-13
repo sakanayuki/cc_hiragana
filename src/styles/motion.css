@@ -1,0 +1,39 @@
+/* 動きが苦手な人・端末設定を尊重する。
+   音と文字の拡大だけ残し、跳ねる動きと紙吹雪は止める。 */
+@media (prefers-reduced-motion: reduce) {
+  .cell.is-pressed,
+  .cell.is-wrong,
+  .cell.is-correct,
+  .cell.is-hinted,
+  .celebrate__title,
+  .quiz__char.is-changing {
+    animation: none;
+  }
+
+  .cell.is-hinted {
+    outline: 4px solid var(--a-edge);
+    outline-offset: -4px;
+  }
+
+  .confetti {
+    display: none;
+  }
+
+  .kana-burst__char {
+    animation: kana-fade 720ms ease-out forwards;
+  }
+
+  @keyframes kana-fade {
+    0%,
+    55% {
+      opacity: 0.94;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+
+  * {
+    transition-duration: 1ms !important;
+  }
+}
