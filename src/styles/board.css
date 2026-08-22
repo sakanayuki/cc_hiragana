@@ -1,7 +1,8 @@
 /* ---- 五十音表 --------------------------------------------------------
  * 端末の向きで並びが変わる。
- *   縦持ち : 五十音表と同じ 2 列 × 5 行 (右が あ行、左が か行) + 最下段に「ん」
- *   横長   : 素材画像と同じ あ行 / か行 / ん の 3 行 × 5 列
+ *   縦持ち : 五十音表と同じ「行のぶんだけ列」× 5 段 (右の列から あ行→か行→…)
+ *            + 最下段に「ん」
+ *   横長   : 素材画像と同じ 5 列 × 行のぶんだけ行 + 最下段に「ん」
  * どちらもスクロールは起こさず、必ず 1 画面に収める。
  * ------------------------------------------------------------------- */
 
@@ -40,11 +41,12 @@
   height: calc(var(--row-units) * var(--cell) + var(--row-gaps) * var(--gap));
 }
 
-/* --- 縦持ち: 2 列 × 6 行 --- */
+/* --- 縦持ち: 行数ぶんの列 × 5 段 + 「ん」 --- */
+/* 列数と行数は --row-count (= 行の数) から出すので、行を足しても CSS は無改修。 */
 @media (orientation: portrait) {
   .board {
-    --cols: 2;
-    --row-units: 5.6;
+    --cols: var(--row-count);
+    --row-units: 5.6; /* 5 段 + 「ん」の 0.6 */
     --row-gaps: 5;
     grid-template-rows: repeat(5, 1fr) 0.6fr;
   }
@@ -59,13 +61,13 @@
   }
 }
 
-/* --- 横長: 5 列 × 3 行 --- */
+/* --- 横長: 5 列 × 行数ぶんの行 + 「ん」 --- */
 @media (orientation: landscape) {
   .board {
     --cols: 5;
-    --row-units: 2.6;
-    --row-gaps: 2;
-    grid-template-rows: repeat(2, 1fr) 0.6fr;
+    --row-units: calc(var(--row-count) + 0.6);
+    --row-gaps: var(--row-count);
+    grid-template-rows: repeat(var(--row-count), 1fr) 0.6fr;
   }
 
   .cell {
@@ -104,6 +106,16 @@
 .cell[data-row='ka'] {
   --face: var(--ka-face);
   --edge: var(--ka-edge);
+}
+
+.cell[data-row='sa'] {
+  --face: var(--sa-face);
+  --edge: var(--sa-edge);
+}
+
+.cell[data-row='ta'] {
+  --face: var(--ta-face);
+  --edge: var(--ta-edge);
 }
 
 .cell[data-row='omake'] {

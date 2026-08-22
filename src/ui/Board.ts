@@ -3,6 +3,9 @@ import { withBase } from '../audio/AudioEngine';
 
 export type CellEffect = 'pressed' | 'correct' | 'wrong';
 
+/** 段の数 (あ・い・う・え・お)。 */
+const DAN_COUNT = 5;
+
 const EFFECT_CLASS: Record<CellEffect, string> = {
   pressed: 'is-pressed',
   correct: 'is-correct',
@@ -25,6 +28,9 @@ export class Board {
     this.el.className = 'board';
     this.el.setAttribute('role', 'group');
     this.el.setAttribute('aria-label', 'ひらがなひょう');
+    // 行数を CSS に渡す。列数・行数はここから算出されるので、
+    // KANA_ROWS に行を足すだけで盤面が組み替わる (board.css 参照)。
+    this.el.style.setProperty('--row-count', String(KANA_ROWS.length));
 
     for (const entry of CHARACTERS) {
       const cell = this.createCell(entry);
@@ -51,7 +57,7 @@ export class Board {
       cell.style.setProperty('--l-row', String(rowIndex + 1));
     } else {
       // おまけの「ん」は最下段。縦持ちでは全幅、横長では中央の 1 マス。
-      cell.style.setProperty('--p-row', String(5 + 1));
+      cell.style.setProperty('--p-row', String(DAN_COUNT + 1));
       cell.style.setProperty('--l-col', '3');
       cell.style.setProperty('--l-row', String(KANA_ROWS.length + 1));
     }
