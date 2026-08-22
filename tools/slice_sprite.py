@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""assets-source/aka.jpeg の 4x4 スプライトを 1 枚ずつ背景透過 PNG に切り出す。
+"""assets-source/ の 4x4 スプライトを 1 マスずつ背景透過 PNG に切り出す。
 
 出力:
-  public/icons/01-a.png ... 11-n.png   アプリが使うアイコン (512x512, RGBA)
+  public/icons/01-a.png ... 21-n.png   アプリが使うアイコン (512x512, RGBA)
   public/app-icon-192.png / app-icon-512.png / apple-touch-icon.png / favicon.png
   tools/out/contact-sheet.png          目視確認用のコンタクトシート
 
@@ -22,7 +22,7 @@ import numpy as np
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
-SPRITE = ROOT / "assets-source" / "aka.jpeg"
+SOURCE_DIR = ROOT / "assets-source"
 ICON_DIR = ROOT / "public" / "icons"
 PUBLIC = ROOT / "public"
 OUT_DIR = ROOT / "tools" / "out"
@@ -36,11 +36,26 @@ GRID_PITCH = 246.7
 WINDOW = 208
 COLS = 4
 
-# 切り出し対象 11 マス。ここに (romaji, 五十音の並び順ID) を持つ。
-TILES = [
-    (1, "a"), (2, "i"), (3, "u"), (4, "e"), (5, "o"),
-    (6, "ka"), (7, "ki"), (8, "ku"), (9, "ke"), (10, "ko"),
-    (11, "n"),
+# 切り出し対象。スプライトごとに (シート内のマス番号, 通し番号, ローマ字)。
+# 通し番号は五十音の並び順で、出力ファイル名 "{通し番号:02d}-{ローマ字}.png" になる。
+# 「ん」はおまけなので行が増えても末尾に居座るよう 21 に固定してある。
+# 行を足すときは新しいスプライトをここに 1 ブロック追加するだけでよい。
+SHEETS: list[tuple[str, list[tuple[int, int, str]]]] = [
+    (
+        "aka.jpeg",
+        [
+            (1, 1, "a"), (2, 2, "i"), (3, 3, "u"), (4, 4, "e"), (5, 5, "o"),
+            (6, 6, "ka"), (7, 7, "ki"), (8, 8, "ku"), (9, 9, "ke"), (10, 10, "ko"),
+            (11, 21, "n"),
+        ],
+    ),
+    (
+        "sata.jpeg",
+        [
+            (1, 11, "sa"), (2, 12, "shi"), (3, 13, "su"), (4, 14, "se"), (5, 15, "so"),
+            (6, 16, "ta"), (7, 17, "chi"), (8, 18, "tsu"), (9, 19, "te"), (10, 20, "to"),
+        ],
+    ),
 ]
 
 # 背景とみなす色の判定。ページ地 (#F6F7F1) とタイル地 (#E5E9EC) の両方を拾う。
@@ -252,30 +267,33 @@ def write_app_icons(source: Image.Image) -> None:
 
 
 def main() -> int:
-    if not SPRITE.exists():
-        print(f"素材が見つかりません: {SPRITE}", file=sys.stderr)
-        return 1
-
     ICON_DIR.mkdir(parents=True, exist_ok=True)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    sprite = np.asarray(Image.open(SPRITE).convert("RGB"))
 
-    cut: list[Image.Image] = []
-    for tile_id, romaji in TILES:
-        img = cut_tile(sprite, tile_id - 1)
-        path = ICON_DIR / f"{tile_id:02d}-{romaji}.png"
-        img.save(path)
-        cut.append(img)
-        print(f"  {path.relative_to(ROOT)}")
+    cut: dict[int, Image.Image] = {}
+    for sheet_name, tiles in SHEETS:
+        path = SOURCE_DIR / sheet_name
+        if not path.exists():
+            print(f"素材が見つかりません: {path}", file=sys.stderr)
+            return 1
+        sprite = np.asarray(Image.open(path).convert("RGB"))
+        for tile_no, order, romaji in tiles:
+            img = cut_tile(sprite, tile_no - 1)
+            out = ICON_DIR / f"{order:02d}-{romaji}.png"
+            img.save(out)
+            cut[order] = img
+            print(f"  {out.relative_to(ROOT)}")
 
-    write_app_icons(cut[0])
+    # アプリアイコンは「あり」を流用する
+    write_app_icons(cut[1])
 
-    # コンタクトシート (4 列)
+    # コンタクトシート (通し番号順、4 列)
+    ordered = [cut[key] for key in sorted(cut)]
     thumb = 200
-    cols, rows = 4, (len(cut) + 3) // 4
+    cols, rows = 4, (len(ordered) + 3) // 4
     sheet = checkerboard(max(cols, rows) * thumb).resize((cols * thumb, rows * thumb))
     sheet = sheet.convert("RGBA")
-    for i, img in enumerate(cut):
+    for i, img in enumerate(ordered):
         r, c = divmod(i, cols)
         sheet.alpha_composite(img.resize((thumb, thumb), Image.LANCZOS), (c * thumb, r * thumb))
     sheet.convert("RGB").save(OUT_DIR / "contact-sheet.png")

@@ -265,3 +265,34 @@
   border-radius: 2px;
   will-change: transform, opacity;
 }
+
+/* 横持ちのスマホは高さが足りず、出題エリアがマスを圧迫する。
+   21 マスになって 1 マスが 56px まで縮んだので、背の低い横持ちだけ
+   出題エリアを詰めて高さをマスに譲る。3歳児のタップ領域を優先する。 */
+@media (orientation: landscape) and (max-height: 520px) {
+  .quiz__prompt {
+    gap: clamp(8px, 2vmin, 16px);
+    padding: 0;
+  }
+
+  .quiz__label {
+    font-size: clamp(11px, 2.4vmin, 16px);
+  }
+
+  .quiz__char {
+    font-size: clamp(30px, 9vmin, 56px);
+  }
+
+  .quiz__replay {
+    width: clamp(34px, 9vmin, 52px);
+    font-size: clamp(16px, 4.5vmin, 26px);
+  }
+
+  .quiz__pips {
+    padding-bottom: 2px;
+  }
+
+  .quiz__pip {
+    width: clamp(8px, 1.8vmin, 14px);
+  }
+}
