@@ -25,7 +25,7 @@ let screen: Screen | null = null;
 function show(next: Mode): void {
   screen?.destroy();
   mode = next;
-  screen = next === 'quiz' ? new QuizMode() : new FreeMode();
+  screen = next === 'quiz' ? new QuizMode(() => show('free')) : new FreeMode();
   app!.append(screen.el);
 }
 

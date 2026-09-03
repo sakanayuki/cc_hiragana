@@ -233,6 +233,13 @@
   animation: kana-swap 520ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+.celebrate__buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(10px, 2.4vmin, 22px);
+}
+
 .celebrate__again {
   padding: clamp(16px, 4vmin, 34px) clamp(30px, 8vmin, 70px);
   font-size: clamp(22px, 6vmin, 52px);
@@ -246,6 +253,20 @@
 
 .celebrate__again:active {
   transform: translateY(4px) scale(0.97);
+}
+
+/* 「やめる」は大人が押す出口なので、控えめにして誤タップを減らす */
+.celebrate__quit {
+  padding: clamp(8px, 2vmin, 16px) clamp(20px, 5vmin, 44px);
+  font-size: clamp(15px, 3.2vmin, 28px);
+  color: var(--ink-soft);
+  border-radius: 999px;
+  border: 2px solid #e2d6bf;
+  transition: transform 120ms ease-out;
+}
+
+.celebrate__quit:active {
+  transform: scale(0.96);
 }
 
 /* ---- 紙吹雪 --------------------------------------------------------- */

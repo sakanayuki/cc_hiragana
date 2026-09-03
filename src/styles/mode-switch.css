@@ -1,5 +1,6 @@
 /* ---- モード切替 (大人向け) -------------------------------------------
- * 子どもが誤って押してもモードが変わらないよう、1.2 秒の長押しでだけ開く。
+ * 歯車を 1 回タップするとシートが開く。誤って開いても「とじる」か
+ * 背景タップですぐ戻れる。
  * ------------------------------------------------------------------- */
 
 .mode-toggle {
@@ -13,21 +14,13 @@
   border-radius: 50%;
   color: var(--ink-soft);
   background: rgba(255, 255, 255, 0.5);
-  opacity: 0.45;
+  opacity: 0.5;
   z-index: 20;
+  transition: transform 120ms ease-out;
 }
 
-.mode-toggle__ring {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  /* 長押しの進み具合。--hold は 0 → 1 */
-  background: conic-gradient(
-    var(--a-edge) calc(var(--hold, 0) * 360deg),
-    transparent 0
-  );
-  opacity: 0.85;
-  transition: opacity 150ms ease-out;
+.mode-toggle:active {
+  transform: scale(0.92);
 }
 
 .mode-toggle__glyph {

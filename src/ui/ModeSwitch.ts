@@ -1,24 +1,19 @@
 export type Mode = 'free' | 'quiz';
 
-const HOLD_MS = 1200;
-
 const MODE_LABEL: Record<Mode, string> = {
   free: 'あそぶ',
   quiz: 'クイズ',
 };
 
 /**
- * モード切替は大人だけが開ける入口にする。
+ * モード切替の入口。画面隅の歯車を 1 回タップするとシートが開く。
  *
- * 子どもは画面のあちこちを無差別に触るので、ふつうのボタンだと遊んでいる最中に
- * 勝手にモードが変わってしまう。1.2 秒の長押しでだけ開き、押している間は
- * リングで進み具合を見せて大人が気づけるようにする。
+ * もとは子どもの誤タップを避けるため 1.2 秒の長押しにしていたが、
+ * 大人でも開き方が分かりにくかったので普通のタップに変えた。
+ * 誤って開いても「とじる」か背景タップですぐ戻れる。
  */
 export class ModeSwitch {
   readonly el: HTMLButtonElement;
-  private ring: HTMLSpanElement;
-  private raf: number | null = null;
-  private holdStart = 0;
   private sheet: HTMLDivElement | null = null;
 
   constructor(
@@ -28,46 +23,18 @@ export class ModeSwitch {
     this.el = document.createElement('button');
     this.el.type = 'button';
     this.el.className = 'mode-toggle';
-    this.el.setAttribute('aria-label', 'おとなメニュー（ながおし）');
-
-    this.ring = document.createElement('span');
-    this.ring.className = 'mode-toggle__ring';
+    this.el.setAttribute('aria-label', 'おとなメニュー');
 
     const glyph = document.createElement('span');
     glyph.className = 'mode-toggle__glyph';
     glyph.textContent = '⚙';
+    this.el.append(glyph);
 
-    this.el.append(this.ring, glyph);
-
-    this.el.addEventListener('pointerdown', this.beginHold);
-    this.el.addEventListener('pointerup', this.cancelHold);
-    this.el.addEventListener('pointerleave', this.cancelHold);
-    this.el.addEventListener('pointercancel', this.cancelHold);
+    this.el.addEventListener('pointerdown', (ev) => {
+      ev.preventDefault();
+      this.openSheet();
+    });
   }
-
-  private beginHold = (ev: PointerEvent): void => {
-    ev.preventDefault();
-    this.el.setPointerCapture?.(ev.pointerId);
-    this.holdStart = performance.now();
-    const tick = (): void => {
-      const progress = Math.min(1, (performance.now() - this.holdStart) / HOLD_MS);
-      this.el.style.setProperty('--hold', String(progress));
-      if (progress >= 1) {
-        this.raf = null;
-        this.el.style.setProperty('--hold', '0');
-        this.openSheet();
-        return;
-      }
-      this.raf = requestAnimationFrame(tick);
-    };
-    this.raf = requestAnimationFrame(tick);
-  };
-
-  private cancelHold = (): void => {
-    if (this.raf !== null) cancelAnimationFrame(this.raf);
-    this.raf = null;
-    this.el.style.setProperty('--hold', '0');
-  };
 
   private openSheet(): void {
     if (this.sheet) return;

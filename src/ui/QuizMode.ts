@@ -42,7 +42,8 @@ export class QuizMode {
   private misses = 0;
   private timers = new Set<number>();
 
-  constructor() {
+  /** @param onExit 「やめる」でクイズを抜けるときに呼ばれる。 */
+  constructor(private onExit: () => void) {
     this.el = document.createElement('div');
     this.el.className = 'screen quiz';
 
@@ -181,6 +182,9 @@ export class QuizMode {
     title.className = 'celebrate__title';
     title.textContent = 'よくできました！';
 
+    const buttons = document.createElement('div');
+    buttons.className = 'celebrate__buttons';
+
     const again = document.createElement('button');
     again.type = 'button';
     again.className = 'celebrate__again';
@@ -190,7 +194,19 @@ export class QuizMode {
       this.startSet();
     });
 
-    screen.append(title, again);
+    // クイズを抜ける唯一の分かりやすい出口。歯車のメニューからでも戻れるが、
+    // 遊び終わりにいちばん自然な場所はここ。
+    const quit = document.createElement('button');
+    quit.type = 'button';
+    quit.className = 'celebrate__quit';
+    quit.textContent = 'やめる';
+    quit.addEventListener('pointerdown', (ev) => {
+      ev.preventDefault();
+      this.onExit();
+    });
+
+    buttons.append(again, quit);
+    screen.append(title, buttons);
     this.celebrateEl = screen;
     this.el.append(screen);
   }
