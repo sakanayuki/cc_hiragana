@@ -2,7 +2,7 @@
 """assets-source/ の 4x4 スプライトを 1 マスずつ背景透過 PNG に切り出す。
 
 出力:
-  public/icons/01-a.png ... 21-n.png   アプリが使うアイコン (512x512, RGBA)
+  public/icons/01-a.png ... 46-n.png   アプリが使うアイコン (512x512, RGBA)
   public/app-icon-192.png / app-icon-512.png / apple-touch-icon.png / favicon.png
   tools/out/contact-sheet.png          目視確認用のコンタクトシート
 
@@ -38,7 +38,7 @@ COLS = 4
 
 # 切り出し対象。スプライトごとに (シート内のマス番号, 通し番号, ローマ字)。
 # 通し番号は五十音の並び順で、出力ファイル名 "{通し番号:02d}-{ローマ字}.png" になる。
-# 「ん」はおまけなので行が増えても末尾に居座るよう 21 に固定してある。
+# 「ん」はおまけなので行が増えても末尾に居座るよう 46 に固定してある。
 # 行を足すときは新しいスプライトをここに 1 ブロック追加するだけでよい。
 SHEETS: list[tuple[str, list[tuple[int, int, str]]]] = [
     (
@@ -46,7 +46,7 @@ SHEETS: list[tuple[str, list[tuple[int, int, str]]]] = [
         [
             (1, 1, "a"), (2, 2, "i"), (3, 3, "u"), (4, 4, "e"), (5, 5, "o"),
             (6, 6, "ka"), (7, 7, "ki"), (8, 8, "ku"), (9, 9, "ke"), (10, 10, "ko"),
-            (11, 21, "n"),
+            (11, 46, "n"),
         ],
     ),
     (
@@ -56,10 +56,38 @@ SHEETS: list[tuple[str, list[tuple[int, int, str]]]] = [
             (6, 16, "ta"), (7, 17, "chi"), (8, 18, "tsu"), (9, 19, "te"), (10, 20, "to"),
         ],
     ),
+    (
+        # 16 マス目まで埋まっていて、最後の「やかん」だけ や行の頭。
+        # ふ は音声ファイルが hu.mp3 (訓令式) なのでローマ字も hu に合わせる。
+        "nahama.jpeg",
+        [
+            (1, 21, "na"), (2, 22, "ni"), (3, 23, "nu"), (4, 24, "ne"), (5, 25, "no"),
+            (6, 26, "ha"), (7, 27, "hi"), (8, 28, "hu"), (9, 29, "he"), (10, 30, "ho"),
+            (11, 31, "ma"), (12, 32, "mi"), (13, 33, "mu"), (14, 34, "me"), (15, 35, "mo"),
+            (16, 36, "ya"),
+        ],
+    ),
+    (
+        # や行の続き (ゆ・よ) から。9 マス目「えをかく」が を。
+        "yurawa.jpeg",
+        [
+            (1, 37, "yu"), (2, 38, "yo"),
+            (3, 39, "ra"), (4, 40, "ri"), (5, 41, "ru"), (6, 42, "re"), (7, 43, "ro"),
+            (8, 44, "wa"), (9, 45, "wo"),
+        ],
+    ),
 ]
 
-# 背景とみなす色の判定。ページ地 (#F6F7F1) とタイル地 (#E5E9EC) の両方を拾う。
-BG_TOLERANCE = 62
+# 地色からの距離 (RGB 各チャンネル差の合計) のしきい値。
+# タイル地 ≈ (220,227,231) に対し、はさみの刃 (171,172,177) は 151、
+# やかんの銀 (203,207,210) は 68、まくらの白 (254,254,254) は 89 離れている。
+# 44 まで絞ればこれらを残したまま地とアンチエイリアスだけ落とせる。
+BG_TIGHT = 44
+BG_LOOSE = 58
+HALO_STEPS = 2
+# 縁飾り (丸角枠 + 白いリング) を落とすために窓から削る幅。
+TILE_INSET = 14
+
 # タイル左上の番号が収まる領域 (タイル幅に対する比率)。
 NUMBER_BOX = (0.36, 0.32)
 OUTPUT_SIZE = 512
@@ -67,60 +95,78 @@ PAD_RATIO = 0.08
 APP_BG = (255, 247, 232)
 
 
-def is_backgroundish(px: np.ndarray) -> np.ndarray:
-    """地の候補 = 彩度が低く、暗すぎない画素。
-
-    ページ地 (#F6F7F1)、タイル地 (#E5E9EC)、タイルの丸角枠 (#8A8E8F〜#989B9B) を
-    まとめて拾う。枠を含めないと塗りが枠で止まり、タイル地が抜けずに残る。
-    絵は輪郭線 (ほぼ黒) で閉じているか十分に彩度が高いので巻き込まれない。
-    """
-    mx = px.max(axis=-1)
-    mn = px.min(axis=-1)
-    return (mn > 132) & ((mx - mn) < 30)
+def ring_mask(size: int, inset: int, width: int = 3) -> np.ndarray:
+    """窓の内側 inset の位置にある細いリング。地色のサンプリングに使う。"""
+    m = np.zeros((size, size), dtype=bool)
+    m[inset : inset + width, inset:-inset] = True
+    m[-inset - width : -inset, inset:-inset] = True
+    m[inset:-inset, inset : inset + width] = True
+    m[inset:-inset, -inset - width : -inset] = True
+    return m
 
 
-def flood_outside(rgb: np.ndarray) -> np.ndarray:
-    """窓の四辺から地色を塗り広げ、絵の外側だけを True にしたマスクを返す。
+def erase_number(rgb: np.ndarray) -> np.ndarray:
+    """左上の番号を、周囲の色で塗り潰して消す。
 
-    塗り広げなので、うし・おにぎりのように輪郭線で囲まれた白は残る。
+    番号は濃紺 ((13,28,49)〜(30,60,94)) で、必ずタイルの左上に置かれている。
+    たいていのタイルでは番号はタイル地の上に乗っているので、塗り潰した結果は
+    地色になり、このあとの background_mask がまとめて落としてくれる。
+    「ぬりえ」のように絵自身が白い台紙を持っていて番号がその上に乗っている
+    タイルでも、台紙の色で塗り潰されるので跡が残らない。
+
+    絵の輪郭線 (黒や濃い赤) を巻き込まないよう、青が赤より明確に強い
+    暗い画素だけを番号とみなす。
     """
     h, w, _ = rgb.shape
-    cand = is_backgroundish(rgb)
-    outside = np.zeros((h, w), dtype=bool)
-    q: deque[tuple[int, int]] = deque()
+    box_h, box_w = int(h * NUMBER_BOX[1]), int(w * NUMBER_BOX[0])
+    box = rgb[:box_h, :box_w]
+    r, g, b = box[..., 0], box[..., 1], box[..., 2]
+    is_number = (b > r + 20) & (b < 150) & (r < 110) & (g < 130)
+    if not is_number.any():
+        return rgb
 
-    def push(y: int, x: int) -> None:
-        if 0 <= y < h and 0 <= x < w and not outside[y, x] and cand[y, x]:
-            outside[y, x] = True
-            q.append((y, x))
+    # アンチエイリアスの縁まで含めるよう 2px 広げる
+    grown = is_number.copy()
+    for _ in range(2):
+        nb = np.zeros_like(grown)
+        nb[1:, :] |= grown[:-1, :]
+        nb[:-1, :] |= grown[1:, :]
+        nb[:, 1:] |= grown[:, :-1]
+        nb[:, :-1] |= grown[:, 1:]
+        grown |= nb & (b > r + 8) & (r < 190)
 
-    for x in range(w):
-        push(0, x)
-        push(h - 1, x)
-    for y in range(h):
-        push(y, 0)
-        push(y, w - 1)
+    filler = np.median(box[~grown], axis=0) if (~grown).any() else box.reshape(-1, 3).mean(axis=0)
+    out = rgb.copy()
+    out[:box_h, :box_w][grown] = filler.astype(rgb.dtype)
+    return out
 
-    while q:
-        y, x = q.popleft()
-        push(y - 1, x)
-        push(y + 1, x)
-        push(y, x - 1)
-        push(y, x + 1)
 
-    # 地色そのものではないが地に極めて近い画素 (アンチエイリアスの縁) も外側に寄せる
-    ref = rgb[outside].mean(axis=0) if outside.any() else np.array([240.0, 242.0, 240.0])
-    near = np.abs(rgb - ref).sum(axis=-1) < BG_TOLERANCE
-    grown = outside.copy()
-    q = deque(zip(*np.nonzero(outside)))
-    while q:
-        y, x = q.popleft()
-        for dy, dx in ((-1, 0), (1, 0), (0, -1), (0, 1)):
-            ny, nx = y + dy, x + dx
-            if 0 <= ny < h and 0 <= nx < w and not grown[ny, nx] and near[ny, nx]:
-                grown[ny, nx] = True
-                q.append((ny, nx))
-    return grown
+def background_mask(rgb: np.ndarray) -> np.ndarray:
+    """タイル地と判定する画素を返す。
+
+    呼び出し側で縁飾り (灰色の丸角枠とその内側の白いリング) を切り落としてから
+    渡すので、ここに来るのは「タイル地 + 絵」だけ。あとは地色を実測して、
+    その色に十分近い画素を落とすだけでよい。
+
+    連結成分をたどらないので、ゆびわのように輪郭で囲まれた穴も地色なら抜ける。
+    逆に、やかんの銀 (203,207,210)・はさみの刃 (171,172,177)・まくらの白
+    (254,254,254) は地色 (≈222,228,232) から 68〜151 離れているので残る。
+    """
+    tile = rgb[ring_mask(rgb.shape[0], 1)].mean(axis=0)
+    dist = np.abs(rgb - tile).sum(axis=-1)
+    bg = dist < BG_TIGHT
+
+    # 地と絵の境目に残るアンチエイリアスの縁を、地に接した画素から 2px だけ削る。
+    # 無制限に広げると銀色や白の絵が端から丸ごと崩れるので回数で止める。
+    loose = dist < BG_LOOSE
+    for _ in range(HALO_STEPS):
+        neighbour = np.zeros_like(bg)
+        neighbour[1:, :] |= bg[:-1, :]
+        neighbour[:-1, :] |= bg[1:, :]
+        neighbour[:, 1:] |= bg[:, :-1]
+        neighbour[:, :-1] |= bg[:, 1:]
+        bg |= neighbour & loose
+    return bg
 
 
 def label_components(mask: np.ndarray) -> tuple[np.ndarray, int]:
@@ -217,11 +263,15 @@ def feather(alpha: np.ndarray) -> np.ndarray:
 
 def cut_tile(sprite: np.ndarray, index: int) -> Image.Image:
     row, col = divmod(index, COLS)
-    x0 = int(round(GRID_ORIGIN + col * GRID_PITCH))
-    y0 = int(round(GRID_ORIGIN + row * GRID_PITCH))
-    rgb = sprite[y0 : y0 + WINDOW, x0 : x0 + WINDOW].astype(np.int16)
+    x0 = int(round(GRID_ORIGIN + col * GRID_PITCH)) + TILE_INSET
+    y0 = int(round(GRID_ORIGIN + row * GRID_PITCH)) + TILE_INSET
+    side = WINDOW - TILE_INSET * 2
+    # 縁飾りは窓の外周 0〜12px に収まっており、絵がその下に潜り込むことはない。
+    # 先に内側だけを取り出してしまえば、あとは地色を消すだけで済む。
+    rgb = sprite[y0 : y0 + side, x0 : x0 + side].astype(np.int16)
+    rgb = erase_number(rgb)
 
-    opaque = ~flood_outside(rgb)
+    opaque = ~background_mask(rgb)
     opaque = drop_edge_speckle(opaque)
     opaque = drop_number(opaque, rgb)
     if not opaque.any():

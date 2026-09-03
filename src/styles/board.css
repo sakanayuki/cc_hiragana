@@ -4,6 +4,10 @@
  *            + 最下段に「ん」
  *   横長   : 素材画像と同じ 5 列 × 行のぶんだけ行 + 最下段に「ん」
  * どちらもスクロールは起こさず、必ず 1 画面に収める。
+ *
+ * 46 マス全部を並べるとスマホでは 1 マスが小さくなりすぎるので、そういう
+ * 端末では行を何ページかに分けて送る (Board.relayout / pager.css)。
+ * ここで使う --row-count は「いま見えている行の数」で、Board が毎回入れ直す。
  * ------------------------------------------------------------------- */
 
 .board-area {
@@ -116,6 +120,36 @@
 .cell[data-row='ta'] {
   --face: var(--ta-face);
   --edge: var(--ta-edge);
+}
+
+.cell[data-row='na'] {
+  --face: var(--na-face);
+  --edge: var(--na-edge);
+}
+
+.cell[data-row='ha'] {
+  --face: var(--ha-face);
+  --edge: var(--ha-edge);
+}
+
+.cell[data-row='ma'] {
+  --face: var(--ma-face);
+  --edge: var(--ma-edge);
+}
+
+.cell[data-row='ya'] {
+  --face: var(--ya-face);
+  --edge: var(--ya-edge);
+}
+
+.cell[data-row='ra'] {
+  --face: var(--ra-face);
+  --edge: var(--ra-edge);
+}
+
+.cell[data-row='wa'] {
+  --face: var(--wa-face);
+  --edge: var(--wa-edge);
 }
 
 .cell[data-row='omake'] {

@@ -1,6 +1,7 @@
 import './styles/base.css';
 import './styles/board.css';
 import './styles/screens.css';
+import './styles/pager.css';
 import './styles/mode-switch.css';
 import './styles/motion.css';
 

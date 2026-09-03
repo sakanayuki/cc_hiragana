@@ -3,6 +3,7 @@ import { audio } from '../audio/AudioEngine';
 import { playCorrect, playFanfare, playWrong } from '../audio/sfx';
 import { Board } from './Board';
 import { Confetti } from './Confetti';
+import { Pager } from './Pager';
 
 /** 2 回まちがえたら正解のマスをそっと光らせる。 */
 const HINT_AFTER_MISSES = 2;
@@ -20,15 +21,16 @@ function shuffled<T>(items: readonly T[]): T[] {
 /**
  * クイズモード。
  *
- * 出題は「大きなかな」＋「ことばの音声」。表は自由タップと同じ 11 マスのまま
- * なので、遊びの延長で探せる。「ん」は音声が『うんち』で噛み合わないため
- * 出題対象から外してあるが、マスとしては触れる（ハズレ扱い）。
+ * 出題は「大きなかな」＋「ことばの音声」。表は自由タップと同じものなので、
+ * 遊びの延長で探せる。「ん」(うんち) と「を」(えをかく) は文字と音の頭が
+ * そろわないため出題対象から外してあるが、マスとしては触れる（ハズレ扱い）。
  *
  * まちがえても減点もやり直しもしない。何度でも触れる。
  */
 export class QuizMode {
   readonly el: HTMLDivElement;
   private board: Board;
+  private pager: Pager;
   private confetti = new Confetti();
   private charEl: HTMLDivElement;
   private pipsEl: HTMLDivElement;
@@ -72,11 +74,11 @@ export class QuizMode {
 
     this.board = new Board((entry, cell) => this.answer(entry, cell));
 
-    const area = document.createElement('div');
-    area.className = 'board-area';
-    area.append(this.board.el);
+    this.pager = new Pager(this.board);
+    this.board.el.append(this.pager.el);
+    this.board.onLayout = () => this.pager.render();
 
-    this.el.append(prompt, area, this.pipsEl, this.confetti.el);
+    this.el.append(prompt, this.board.el, this.pipsEl, this.confetti.el);
     this.startSet();
   }
 
@@ -87,7 +89,7 @@ export class QuizMode {
     this.board.clearEffects();
     this.board.setInteractive(true);
 
-    // 10 文字から重複なしで 5 問取る
+    // 出題できる 44 文字から重複なしで 5 問取る
     this.queue = shuffled(QUIZ_POOL).slice(0, QUIZ_SET_SIZE);
     this.answered = 0;
     this.renderPips();
@@ -114,6 +116,9 @@ export class QuizMode {
     this.current = next;
     this.misses = 0;
     this.board.setHint(null);
+    // ページ送り中は正解が別のページに居ることがあるので、その行まで送る。
+    // 1 ページに 20 マス前後あるので、これだけでは答えは割れない。
+    this.board.reveal(next);
 
     this.charEl.textContent = next.kana;
     this.charEl.classList.remove('is-changing');
@@ -156,6 +161,8 @@ export class QuizMode {
     playWrong();
     this.misses += 1;
     if (this.misses >= HINT_AFTER_MISSES) {
+      // ヒントのマスが見えていないと意味がないので、そのページへ送る
+      this.board.reveal(target);
       this.board.setHint(target.id);
     }
   }
@@ -200,6 +207,7 @@ export class QuizMode {
     for (const id of this.timers) window.clearTimeout(id);
     this.timers.clear();
     audio.stopVoice();
+    this.board.destroy();
     this.el.remove();
   }
 }
