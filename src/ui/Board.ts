@@ -7,12 +7,11 @@ export type CellEffect = 'pressed' | 'correct' | 'wrong';
 const DAN_COUNT = 5;
 
 /**
- * これを下回ったらページ送りに切り替える 1 マスの一辺 (px)。
- * タブレット・PC は全 10 行を並べても 59〜87px 出るのでページ送りにならない。
+ * 1 ページに載せる行の数。
+ * あ・か・さ・た・な で 1 ページ、は・ま・や・ら・わ で 1 ページの 2 ページ構成。
+ * 端末によらず固定なので、どの画面でも同じ見え方・同じめくり方になる。
  */
-const PAGE_IF_BELOW = 58;
-/** ページ送りするときに確保したい 1 マスの一辺 (px)。 */
-const TARGET_WHEN_PAGING = 76;
+const ROWS_PER_PAGE = 5;
 
 const EFFECT_CLASS: Record<CellEffect, string> = {
   pressed: 'is-pressed',
@@ -26,10 +25,9 @@ const EFFECT_CLASS: Record<CellEffect, string> = {
  * 並びは CSS 側 (board.css) のメディアクエリが決める。各マスに縦持ち用と
  * 横長用の座標を両方持たせてあるので、端末を回した瞬間に JS を介さず並び替わる。
  *
- * 46 マスあると 10 行 x 5 段になり、スマホでは 1 マスが 44px を切って画面にも
- * 収まらない。そこで「1 マスが小さくなりすぎる画面では行を何ページかに分けて
- * 送る」ようにしている。何行ずつ見せるかは board-area の実寸から毎回計算する
- * ので、行が増えても端末が変わっても勝手に折り合いがつく。
+ * 46 マスを 1 画面に並べるとマスが小さくなりすぎるので、行を 2 ページに分けて
+ * 送る。1 ページ目が あ・か・さ・た・な、2 ページ目が は・ま・や・ら・わ。
+ * おまけの「ん」は 2 ページ目 (最後のページ) にだけ置く。
  */
 export class Board {
   /** board-area とページャをまとめた外枠。 */
@@ -39,9 +37,7 @@ export class Board {
   private cells = new Map<number, HTMLButtonElement>();
   private rowOf = new Map<number, number>();
 
-  private perPage = KANA_ROWS.length;
   private page = 0;
-  private observer: ResizeObserver | null = null;
 
   /** ページ構成が変わったときに呼ばれる (ページャの描画用)。 */
   onLayout: (() => void) | null = null;
@@ -68,9 +64,10 @@ export class Board {
     this.area.append(this.grid);
     this.el.append(this.area);
 
-    this.observer = new ResizeObserver(() => this.relayout());
-    this.observer.observe(this.area);
-    this.relayout();
+    // 1 ページの行数は固定なので、列数もここで決まりきる。
+    // 向きによる並び替えは CSS のメディアクエリだけで完結する。
+    this.grid.style.setProperty('--row-count', String(ROWS_PER_PAGE));
+    this.apply();
   }
 
   private createCell(entry: KanaEntry): HTMLButtonElement {
@@ -101,65 +98,17 @@ export class Board {
     return cell;
   }
 
-  /** その並びで 1 マスが何 px になるかを board.css と同じ式で見積もる。 */
-  private cellSize(rows: number, w: number, h: number, gap: number, portrait: boolean): number {
-    const cols = portrait ? rows : DAN_COUNT;
-    const rowUnits = portrait ? DAN_COUNT + 0.6 : rows + 0.6;
-    const rowGaps = portrait ? DAN_COUNT : rows;
-    return Math.min(
-      (w - (cols - 1) * gap) / cols,
-      (h - rowGaps * gap) / rowUnits,
-    );
-  }
-
-  /** 画面の実寸から「1 ページに何行載せるか」を決めて反映する。 */
-  relayout(): void {
-    const total = KANA_ROWS.length;
-    const portrait = window.matchMedia('(orientation: portrait)').matches;
-    const gap = parseFloat(getComputedStyle(this.grid).gap) || 8;
-
-    // ページャを出すと board-area が縮むので、2 回まわして落ち着かせる。
-    let perPage = total;
-    for (let pass = 0; pass < 2; pass += 1) {
-      const { width, height } = this.area.getBoundingClientRect();
-      if (width < 1 || height < 1) return;
-
-      if (this.cellSize(total, width, height, gap, portrait) >= PAGE_IF_BELOW) {
-        perPage = total;
-      } else {
-        perPage = 1;
-        for (let n = total; n >= 1; n -= 1) {
-          if (this.cellSize(n, width, height, gap, portrait) >= TARGET_WHEN_PAGING) {
-            perPage = n;
-            break;
-          }
-        }
-      }
-      const changed = perPage !== this.perPage;
-      this.perPage = perPage;
-      this.el.classList.toggle('is-paged', perPage < total);
-      if (!changed) break;
-    }
-
-    this.page = Math.min(this.page, this.pageCount - 1);
-    this.apply();
-    this.onLayout?.();
-  }
-
   private apply(): void {
-    const start = this.page * this.perPage;
-    const end = Math.min(start + this.perPage, KANA_ROWS.length);
-    // 端数ページでも枠は perPage ぶん確保する。そうしないと最後のページだけ
-    // マスが急に大きくなり、めくるたびに表が伸び縮みして落ち着かない。
-    // 五十音表は右から左に進むので、空くのは左側になる。
-    const slots = this.perPage;
-    this.grid.style.setProperty('--row-count', String(slots));
+    const start = this.page * ROWS_PER_PAGE;
+    const end = Math.min(start + ROWS_PER_PAGE, KANA_ROWS.length);
+    const slots = ROWS_PER_PAGE;
+    const lastPage = this.page === this.pageCount - 1;
 
     for (const [id, cell] of this.cells) {
       const rowIndex = this.rowOf.get(id) ?? -1;
       if (rowIndex < 0) {
-        // おまけの「ん」はどのページでも最下段に出しておく。
-        cell.hidden = false;
+        // おまけの「ん」は最後のページ (は〜わ) の最下段にだけ置く。
+        cell.hidden = !lastPage;
         cell.style.setProperty('--p-row', String(DAN_COUNT + 1));
         cell.style.setProperty('--l-col', '3');
         cell.style.setProperty('--l-row', String(slots + 1));
@@ -183,21 +132,17 @@ export class Board {
   }
 
   get pageCount(): number {
-    return Math.ceil(KANA_ROWS.length / this.perPage);
+    return Math.ceil(KANA_ROWS.length / ROWS_PER_PAGE);
   }
 
   get currentPage(): number {
     return this.page;
   }
 
-  get isPaged(): boolean {
-    return this.perPage < KANA_ROWS.length;
-  }
-
   /** そのページに含まれる行の名前 (ページャの見出し用)。 */
   pageLabel(page: number): string {
-    const start = page * this.perPage;
-    const rows = KANA_ROWS.slice(start, start + this.perPage);
+    const start = page * ROWS_PER_PAGE;
+    const rows = KANA_ROWS.slice(start, start + ROWS_PER_PAGE);
     const head = CHARACTERS.find((c) => c.row === rows[0]);
     const tail = CHARACTERS.find((c) => c.row === rows[rows.length - 1]);
     if (!head || !tail) return '';
@@ -215,13 +160,13 @@ export class Board {
   /** その文字が載っているページ。クイズで正解のページへ送るのに使う。 */
   pageOf(entry: KanaEntry): number {
     const rowIndex = KANA_ROWS.indexOf(entry.row);
-    if (rowIndex < 0) return this.page; // 「ん」はどのページにも居る
-    return Math.floor(rowIndex / this.perPage);
+    // 「ん」は最後のページにだけ居る
+    if (rowIndex < 0) return this.pageCount - 1;
+    return Math.floor(rowIndex / ROWS_PER_PAGE);
   }
 
   /** その文字が見えるページへ移動する。 */
   reveal(entry: KanaEntry): void {
-    if (!this.isPaged) return;
     this.goToPage(this.pageOf(entry));
   }
 
@@ -258,7 +203,6 @@ export class Board {
   }
 
   destroy(): void {
-    this.observer?.disconnect();
-    this.observer = null;
+    // 監視しているものは無い。呼び出し側の後始末をそろえるために残してある。
   }
 }
