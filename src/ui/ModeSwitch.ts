@@ -11,6 +11,12 @@ const MODE_LABEL: Record<Mode, string> = {
  * もとは子どもの誤タップを避けるため 1.2 秒の長押しにしていたが、
  * 大人でも開き方が分かりにくかったので普通のタップに変えた。
  * 誤って開いても「とじる」か背景タップですぐ戻れる。
+ *
+ * 開くのは pointerdown ではなく click。タッチでは指を離した位置の要素に
+ * click が合成されるので、pointerdown で開くと「指の下に出現したばかりの
+ * 背景」に同じタップの click が当たり、一瞬で閉じてしまう。
+ * click まで待てばシートは指が離れたあとに出るので、この取り違えが起きない。
+ * 歯車は大人が押すものなので、click ぶんの遅れは問題にならない。
  */
 export class ModeSwitch {
   readonly el: HTMLButtonElement;
@@ -30,10 +36,7 @@ export class ModeSwitch {
     glyph.textContent = '⚙';
     this.el.append(glyph);
 
-    this.el.addEventListener('pointerdown', (ev) => {
-      ev.preventDefault();
-      this.openSheet();
-    });
+    this.el.addEventListener('click', () => this.openSheet());
   }
 
   private openSheet(): void {
@@ -71,9 +74,15 @@ export class ModeSwitch {
     panel.append(close);
 
     sheet.append(panel);
-    // 背景を触ったときも閉じる（パネル内のクリックは拾わない）
+
+    // 背景を触ったときも閉じる。ただし「押し始めも背景だった」ときだけ。
+    // パネル内から指を滑らせて背景で離した場合に閉じてしまうのを防ぐ。
+    let startedOnBackdrop = false;
+    sheet.addEventListener('pointerdown', (ev) => {
+      startedOnBackdrop = ev.target === sheet;
+    });
     sheet.addEventListener('click', (ev) => {
-      if (ev.target === sheet) this.closeSheet();
+      if (ev.target === sheet && startedOnBackdrop) this.closeSheet();
     });
 
     this.sheet = sheet;
