@@ -13,28 +13,36 @@
   --ink: #22364f;
   --ink-soft: #5b6b80;
 
-  --a-face: #ffd2c2;
-  --a-edge: #f0a389;
-  --ka-face: #c4ecdc;
-  --ka-edge: #86ceb4;
-  --sa-face: #cfe0f7;
-  --sa-edge: #8fb8e8;
-  --ta-face: #f0d8ee;
-  --ta-edge: #cfa4cb;
-  --na-face: #ffe4bf;
-  --na-edge: #f0bd7d;
-  --ha-face: #d9edc6;
-  --ha-edge: #a5cd83;
-  --ma-face: #ffd6dd;
-  --ma-edge: #f0a4b6;
-  --ya-face: #e2ddf7;
-  --ya-edge: #b1a8e0;
-  --ra-face: #c9eaf0;
-  --ra-edge: #86c8d6;
-  --wa-face: #f2e5c6;
-  --wa-edge: #d8c08c;
+  /* 行の色は あ→わ で虹をひとまわりさせている。1ページ目 (あ〜な) が暖色、
+     2ページ目 (は〜わ) が寒色になるので、どちらのページかが一目で分かる。
+     かな文字 (--ink) とのコントラストはいずれも 7:1 以上。 */
+  --a-face: #fbb6b4; /* あ */
+  --a-edge: #e0807d;
+  --ka-face: #fbd0b4; /* か */
+  --ka-edge: #e0a57d;
+  --sa-face: #fbecb4; /* さ */
+  --sa-edge: #e0cb7d;
+  --ta-face: #e3fbb4; /* た */
+  --ta-edge: #bfe07d;
+  --na-face: #b4fbce; /* な */
+  --na-edge: #7de0a1;
+  --ha-face: #b4fbf5; /* は */
+  --ha-edge: #7de0d8;
+  --ma-face: #b4e5fb; /* ま */
+  --ma-edge: #7dc1e0;
+  --ya-face: #b4c1fb; /* や */
+  --ya-edge: #7d8fe0;
+  --ra-face: #dbb4fb; /* ら */
+  --ra-edge: #b47de0;
+  --wa-face: #fbb4e6; /* わ */
+  --wa-edge: #e07dc3;
   --omake-face: #ffe9a8;
   --omake-edge: #f0c85c;
+
+  /* 操作ボタン (ページャの矢印・クイズのスピーカー) 用。行の色を流用すると
+     虹の一色に見えて表の一部と紛らわしいので、彩度を落とした別枠にしている。 */
+  --ui-face: #e6dcc8;
+  --ui-edge: #c6b393;
 
   --radius: clamp(14px, 3vmin, 28px);
   --font: 'Hiragino Maru Gothic ProN', 'ヒラギノ丸ゴ ProN', 'Yu Gothic', 'Noto Sans JP',

@@ -80,9 +80,10 @@
   text-align: center;
 }
 
+/* いま選ばれているモード。行の色ではなく操作用の色を使う。 */
 .mode-sheet__option.is-current {
-  background: var(--ka-face);
-  border-color: var(--ka-edge);
+  background: var(--ui-face);
+  border-color: var(--ui-edge);
 }
 
 .mode-sheet__close {

@@ -31,10 +31,10 @@
   aspect-ratio: 1;
   font-size: clamp(20px, 5vmin, 38px);
   color: var(--ink);
-  background: var(--ka-face);
+  background: var(--ui-face);
   border-radius: 50%;
   box-shadow:
-    0 clamp(3px, 0.9vmin, 8px) 0 var(--ka-edge),
+    0 clamp(3px, 0.9vmin, 8px) 0 var(--ui-edge),
     0 clamp(5px, 1.4vmin, 14px) clamp(6px, 1.6vmin, 16px) rgba(60, 45, 30, 0.16);
   transition: transform 120ms ease-out;
 }
